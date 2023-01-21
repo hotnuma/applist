@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=AppList
+Icon=org.xfce.thunar
+StartupNotify=true
+Exec=applist
+Categories=System;Utility;Core;
+
