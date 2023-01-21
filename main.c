@@ -6,9 +6,9 @@ int main(int argc, char **argv)
 {
     gtk_init(&argc, &argv);
 
-    //GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    GtkWidget *window = g_object_new(TYPE_APPWINDOW, NULL);
 
-    /*GtkWidget *window =*/ g_object_new(TYPE_WINDOW, NULL);
+    gtk_widget_show_all(window);
 
     gtk_main();
 

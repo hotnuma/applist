@@ -7,16 +7,18 @@
 #include <stdbool.h>
 #include <strings.h>
 
-static void _window_dispose(GObject *object);
 static void _window_finalize(GObject *object);
-static void window_realize(GtkWidget *widget);
-static void window_unrealize(GtkWidget *widget);
 
 static void _window_create_view(AppWindow *window);
+static void _window_store_load(AppWindow *window);
+
+static void _treeview_row_activated(GtkTreeView *tree_view, GtkTreePath *path,
+                                    GtkTreeViewColumn *column, AppWindow *window);
+
 static bool _window_append_line(AppWindow *window, GAppInfo *info);
 
-static gint _sort_app_infos(gconstpointer a, gconstpointer b);
-gboolean _app_info_show(GAppInfo *info);
+static gint _appinfo_sort(gconstpointer a, gconstpointer b);
+gboolean _appinfo_show(GAppInfo *info);
 static GdkPixbuf* _pixbuf_from_gicon(GtkWidget *widget, GIcon *gicon);
 static GdkPixbuf* _pixbuf_get_default(GtkWidget *widget);
 
@@ -24,15 +26,11 @@ static gboolean _window_on_delete(GtkWidget *widget, GdkEvent *event, gpointer d
 
 enum
 {
-    COL_ICON = 0,
+    COL_INFO = 0,
+    COL_ICON,
     COL_TITLE,
     COL_FILE,
     NUM_COLS
-};
-
-struct _AppWindowClass
-{
-    GtkWindowClass __parent__;
 };
 
 struct _AppWindow
@@ -47,40 +45,16 @@ G_DEFINE_TYPE(AppWindow, window, GTK_TYPE_WINDOW)
 static void window_class_init(AppWindowClass *klass)
 {
     GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
-    gobject_class->dispose = _window_dispose;
     gobject_class->finalize = _window_finalize;
-
-    GtkWidgetClass *gtkwidget_class = GTK_WIDGET_CLASS(klass);
-    gtkwidget_class->realize = window_realize;
-    gtkwidget_class->unrealize = window_unrealize;
-}
-
-static void _window_dispose(GObject *object)
-{
-    // do something...
-
-    G_OBJECT_CLASS(window_parent_class)->dispose(object);
 }
 
 static void _window_finalize(GObject *object)
 {
-    // do something...
+    AppWindow *window = APPWINDOW(object);
+
+    g_object_unref(window->store);
 
     G_OBJECT_CLASS(window_parent_class)->finalize(object);
-}
-
-static void window_realize(GtkWidget *widget)
-{
-    GTK_WIDGET_CLASS(window_parent_class)->realize(widget);
-
-    // do something...
-}
-
-static void window_unrealize(GtkWidget *widget)
-{
-    // do something...
-
-    GTK_WIDGET_CLASS(window_parent_class)->unrealize(widget);
 }
 
 static gboolean _window_on_delete(GtkWidget *widget, GdkEvent *event, gpointer data)
@@ -139,38 +113,7 @@ static void window_init(AppWindow *window)
                      G_CALLBACK(_window_on_delete), NULL);
 
     _window_create_view(window);
-
-    GList *all = g_app_info_get_all();
-    all = g_list_sort(all, _sort_app_infos);
-
-    for (GList *lp = all; lp; lp = lp->next)
-    {
-        GAppInfo *info = G_APP_INFO(lp->data);
-        if (!_app_info_show(info))
-            continue;
-
-        _window_append_line(window, info);
-    }
-
-    g_list_free_full(all, g_object_unref);
-
-    gtk_widget_show_all(GTK_WIDGET(window));
-}
-
-static gint _sort_app_infos(gconstpointer a, gconstpointer b)
-{
-    return strcasecmp(g_app_info_get_name(G_APP_INFO(a)),
-                      g_app_info_get_name(G_APP_INFO(b)));
-}
-
-gboolean _app_info_show(GAppInfo *info)
-{
-    g_return_val_if_fail(G_IS_APP_INFO(info), FALSE);
-
-    if (G_IS_DESKTOP_APP_INFO(info))
-        return g_desktop_app_info_get_show_in(G_DESKTOP_APP_INFO(info), NULL);
-
-    return TRUE;
+    _window_store_load(window);
 }
 
 static void _window_create_view(AppWindow *window)
@@ -183,13 +126,14 @@ static void _window_create_view(AppWindow *window)
                                         GTK_SHADOW_IN);
 
     GtkListStore *store = gtk_list_store_new(NUM_COLS,
-                               GDK_TYPE_PIXBUF,
-                               G_TYPE_STRING,
-                               G_TYPE_STRING);
+                                             G_TYPE_APP_INFO,
+                                             GDK_TYPE_PIXBUF,
+                                             G_TYPE_STRING,
+                                             G_TYPE_STRING);
 
     GtkWidget *treeview = gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
 
-    window->store = store;
+    window->store = store; // leak
 
     GtkTreeViewColumn *col;
     GtkCellRenderer *renderer;
@@ -226,6 +170,44 @@ static void _window_create_view(AppWindow *window)
     gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), col);
 
     gtk_container_add(GTK_CONTAINER(scroll), treeview);
+
+    g_signal_connect(G_OBJECT(treeview), "row-activated",
+                     G_CALLBACK(_treeview_row_activated), window);
+
+}
+
+static void _window_store_load(AppWindow *window)
+{
+    GList *all = g_app_info_get_all();
+    all = g_list_sort(all, _appinfo_sort);
+
+    for (GList *lp = all; lp; lp = lp->next)
+    {
+        GAppInfo *info = G_APP_INFO(lp->data);
+
+        if (!_appinfo_show(info))
+            continue;
+
+        _window_append_line(window, info);
+    }
+
+    g_list_free_full(all, g_object_unref);
+}
+
+static gint _appinfo_sort(gconstpointer a, gconstpointer b)
+{
+    return strcasecmp(g_app_info_get_name(G_APP_INFO(a)),
+                      g_app_info_get_name(G_APP_INFO(b)));
+}
+
+gboolean _appinfo_show(GAppInfo *info)
+{
+    g_return_val_if_fail(G_IS_APP_INFO(info), FALSE);
+
+    if (G_IS_DESKTOP_APP_INFO(info))
+        return g_desktop_app_info_get_show_in(G_DESKTOP_APP_INFO(info), NULL);
+
+    return TRUE;
 }
 
 static bool _window_append_line(AppWindow *window, GAppInfo *info)
@@ -255,6 +237,7 @@ static bool _window_append_line(AppWindow *window, GAppInfo *info)
     GtkTreeIter iter;
     gtk_list_store_append(window->store, &iter);
     gtk_list_store_set(window->store, &iter,
+                       COL_INFO, info,
                        COL_ICON, pix,
                        COL_TITLE, g_app_info_get_name(info),
                        COL_FILE, g_app_info_get_id(info),
@@ -306,6 +289,32 @@ static GdkPixbuf* _pixbuf_get_default(GtkWidget *widget)
         return NULL;
 
     return gtk_icon_info_load_icon(icon_info, NULL);
+}
+
+static void _treeview_row_activated(GtkTreeView *tree_view, GtkTreePath *path,
+                                    GtkTreeViewColumn *column, AppWindow *window)
+{
+    UNUSED(column);
+    UNUSED(window);
+
+    GtkTreeModel *model = gtk_tree_view_get_model(tree_view);
+
+    GtkTreeIter iter;
+    if (!gtk_tree_model_get_iter(model, &iter, path))
+        return;
+
+    c_autounref GAppInfo *info = NULL;
+    c_autofree char *file = NULL;
+
+    gtk_tree_model_get(model, &iter,
+                       COL_INFO, &info,
+                       COL_FILE, &file,
+                       -1);
+
+    const gchar *filepath = g_desktop_app_info_get_filename(G_DESKTOP_APP_INFO(info));
+    gchar *cmd = g_strdup_printf("exo-open %s", filepath);
+    g_spawn_command_line_async(cmd, NULL);
+    g_free(cmd);
 }
 
 
