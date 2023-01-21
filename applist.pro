@@ -13,6 +13,7 @@ PKGCONFIG += tinyc
 
 SOURCES = \
     0Temp.c \
+    appwindow.c \
     main.c \
 
 DISTFILES += \
@@ -21,5 +22,8 @@ DISTFILES += \
     License.txt \
     meson.build \
     Readme.md \
+
+HEADERS += \
+    appwindow.h
 
 

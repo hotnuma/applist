@@ -1,0 +1,311 @@
+#include "appwindow.h"
+
+#include <macros.h>
+
+#include <gtk/gtk.h>
+#include <gio/gdesktopappinfo.h>
+#include <stdbool.h>
+#include <strings.h>
+
+static void _window_dispose(GObject *object);
+static void _window_finalize(GObject *object);
+static void window_realize(GtkWidget *widget);
+static void window_unrealize(GtkWidget *widget);
+
+static void _window_create_view(AppWindow *window);
+static bool _window_append_line(AppWindow *window, GAppInfo *info);
+
+static gint _sort_app_infos(gconstpointer a, gconstpointer b);
+gboolean _app_info_show(GAppInfo *info);
+static GdkPixbuf* _pixbuf_from_gicon(GtkWidget *widget, GIcon *gicon);
+static GdkPixbuf* _pixbuf_get_default(GtkWidget *widget);
+
+static gboolean _window_on_delete(GtkWidget *widget, GdkEvent *event, gpointer data);
+
+enum
+{
+    COL_ICON = 0,
+    COL_TITLE,
+    COL_FILE,
+    NUM_COLS
+};
+
+struct _AppWindowClass
+{
+    GtkWindowClass __parent__;
+};
+
+struct _AppWindow
+{
+    GtkWindow __parent__;
+
+    GtkListStore *store;
+};
+
+G_DEFINE_TYPE(AppWindow, window, GTK_TYPE_WINDOW)
+
+static void window_class_init(AppWindowClass *klass)
+{
+    GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
+    gobject_class->dispose = _window_dispose;
+    gobject_class->finalize = _window_finalize;
+
+    GtkWidgetClass *gtkwidget_class = GTK_WIDGET_CLASS(klass);
+    gtkwidget_class->realize = window_realize;
+    gtkwidget_class->unrealize = window_unrealize;
+}
+
+static void _window_dispose(GObject *object)
+{
+    // do something...
+
+    G_OBJECT_CLASS(window_parent_class)->dispose(object);
+}
+
+static void _window_finalize(GObject *object)
+{
+    // do something...
+
+    G_OBJECT_CLASS(window_parent_class)->finalize(object);
+}
+
+static void window_realize(GtkWidget *widget)
+{
+    GTK_WIDGET_CLASS(window_parent_class)->realize(widget);
+
+    // do something...
+}
+
+static void window_unrealize(GtkWidget *widget)
+{
+    // do something...
+
+    GTK_WIDGET_CLASS(window_parent_class)->unrealize(widget);
+}
+
+static gboolean _window_on_delete(GtkWidget *widget, GdkEvent *event, gpointer data)
+{
+    UNUSED(widget);
+    UNUSED(event);
+    UNUSED(data);
+
+#if 0
+    Preferences *prefs = get_preferences();
+    GtkWindow *window = GTK_WINDOW(widget);
+
+    if (gtk_widget_get_visible(GTK_WIDGET(widget)))
+    {
+        GdkWindowState state = gdk_window_get_state(
+                                            gtk_widget_get_window(widget));
+
+        prefs->window_maximized = ((state & (GDK_WINDOW_STATE_MAXIMIZED
+                                             | GDK_WINDOW_STATE_FULLSCREEN))
+                                    != 0);
+
+        if (!prefs->window_maximized)
+        {
+            gtk_window_get_size(window,
+                                &prefs->window_width,
+                                &prefs->window_height);
+        }
+    }
+#endif
+
+    gtk_main_quit();
+
+    return false;
+}
+
+static void window_init(AppWindow *window)
+{
+
+#if 0
+    Preferences *prefs = get_preferences();
+
+    gtk_window_set_default_size(GTK_WINDOW(window),
+                                prefs->window_width,
+                                prefs->window_height);
+
+    if (G_UNLIKELY(prefs->window_maximized))
+        gtk_window_maximize(GTK_WINDOW(window));
+#endif
+
+    gtk_window_set_title(GTK_WINDOW(window), "AppInfo List");
+    gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
+    gtk_container_set_border_width(GTK_CONTAINER(window), 10);
+    gtk_window_set_default_size(GTK_WINDOW(window), 640, 480);
+
+    g_signal_connect(window, "delete-event",
+                     G_CALLBACK(_window_on_delete), NULL);
+
+    _window_create_view(window);
+
+    GList *all = g_app_info_get_all();
+    all = g_list_sort(all, _sort_app_infos);
+
+    for (GList *lp = all; lp; lp = lp->next)
+    {
+        GAppInfo *info = G_APP_INFO(lp->data);
+        if (!_app_info_show(info))
+            continue;
+
+        _window_append_line(window, info);
+    }
+
+    g_list_free_full(all, g_object_unref);
+
+    gtk_widget_show_all(GTK_WIDGET(window));
+}
+
+static gint _sort_app_infos(gconstpointer a, gconstpointer b)
+{
+    return strcasecmp(g_app_info_get_name(G_APP_INFO(a)),
+                      g_app_info_get_name(G_APP_INFO(b)));
+}
+
+gboolean _app_info_show(GAppInfo *info)
+{
+    g_return_val_if_fail(G_IS_APP_INFO(info), FALSE);
+
+    if (G_IS_DESKTOP_APP_INFO(info))
+        return g_desktop_app_info_get_show_in(G_DESKTOP_APP_INFO(info), NULL);
+
+    return TRUE;
+}
+
+static void _window_create_view(AppWindow *window)
+{
+    GtkWidget *scroll = gtk_scrolled_window_new(NULL, NULL);
+    gtk_container_add(GTK_CONTAINER(window), scroll);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll),
+                                   GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scroll),
+                                        GTK_SHADOW_IN);
+
+    GtkListStore *store = gtk_list_store_new(NUM_COLS,
+                               GDK_TYPE_PIXBUF,
+                               G_TYPE_STRING,
+                               G_TYPE_STRING);
+
+    GtkWidget *treeview = gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
+
+    window->store = store;
+
+    GtkTreeViewColumn *col;
+    GtkCellRenderer *renderer;
+
+    // Title
+
+    col = gtk_tree_view_column_new();
+    gtk_tree_view_column_set_title(col, "Title");
+
+    renderer = gtk_cell_renderer_pixbuf_new();
+    gtk_tree_view_column_pack_start(col, renderer, FALSE);
+    gtk_tree_view_column_set_attributes(col, renderer,
+                                        "pixbuf", COL_ICON,
+                                        NULL);
+
+    renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_column_pack_start(col, renderer, TRUE);
+    gtk_tree_view_column_set_attributes(col, renderer,
+                                        "text", COL_TITLE,
+                                        NULL);
+
+    gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), col);
+
+    // File
+    col = gtk_tree_view_column_new();
+    gtk_tree_view_column_set_title(col, "File");
+
+    renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_column_pack_start(col, renderer, TRUE);
+    gtk_tree_view_column_set_attributes(col, renderer,
+                                        "text", COL_FILE,
+                                        NULL);
+
+    gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), col);
+
+    gtk_container_add(GTK_CONTAINER(scroll), treeview);
+}
+
+static bool _window_append_line(AppWindow *window, GAppInfo *info)
+{
+    c_autounref GdkPixbuf *pix = NULL;
+
+    GIcon *gicon = g_app_info_get_icon(info);
+    if (!gicon)
+    {
+        g_print("%s : gicon = null\n", g_app_info_get_id(info));
+
+        pix = _pixbuf_get_default(GTK_WIDGET(window));
+    }
+    else
+    {
+        pix = _pixbuf_from_gicon(GTK_WIDGET(window), gicon);
+
+        if (!pix)
+        {
+            g_print("%s : icon_info = null\n", g_app_info_get_id(info));
+
+            pix = _pixbuf_get_default(GTK_WIDGET(window));
+        }
+    }
+
+
+    GtkTreeIter iter;
+    gtk_list_store_append(window->store, &iter);
+    gtk_list_store_set(window->store, &iter,
+                       COL_ICON, pix,
+                       COL_TITLE, g_app_info_get_name(info),
+                       COL_FILE, g_app_info_get_id(info),
+                       -1);
+
+    return true;
+}
+
+static GdkPixbuf* _pixbuf_from_gicon(GtkWidget *widget, GIcon *gicon)
+{
+    if (!gicon)
+        return NULL;
+
+    GtkIconTheme *icon_theme = gtk_icon_theme_get_for_screen(
+                                                gtk_widget_get_screen(widget));
+
+    gint scale_factor = gtk_widget_get_scale_factor(widget);
+    gint requested_icon_size = 24 * scale_factor;
+
+    c_autounref GtkIconInfo *icon_info =
+                        gtk_icon_theme_lookup_by_gicon(icon_theme,
+                                                       gicon,
+                                                       requested_icon_size,
+                                                       GTK_ICON_LOOKUP_USE_BUILTIN
+                                                       | GTK_ICON_LOOKUP_FORCE_SIZE);
+
+    if (G_UNLIKELY(icon_info == NULL))
+        return NULL;
+
+    return gtk_icon_info_load_icon(icon_info, NULL);
+}
+
+static GdkPixbuf* _pixbuf_get_default(GtkWidget *widget)
+{
+    GtkIconTheme *icon_theme = gtk_icon_theme_get_for_screen(
+                                                gtk_widget_get_screen(widget));
+
+    gint scale_factor = gtk_widget_get_scale_factor(widget);
+    gint requested_icon_size = 24 * scale_factor;
+
+    c_autounref GtkIconInfo *icon_info =
+        gtk_icon_theme_lookup_icon(icon_theme,
+                                   "application-x-executable",
+                                   requested_icon_size,
+                                   GTK_ICON_LOOKUP_USE_BUILTIN
+                                   | GTK_ICON_LOOKUP_FORCE_SIZE);
+
+    if (G_UNLIKELY(icon_info == NULL))
+        return NULL;
+
+    return gtk_icon_info_load_icon(icon_info, NULL);
+}
+
+

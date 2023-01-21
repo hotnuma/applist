@@ -23,6 +23,7 @@ app_deps = [
 ]
 
 app_src = [
+    'appwindow.c',
     'main.c',
 ]
 
