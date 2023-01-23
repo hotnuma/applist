@@ -1,6 +1,6 @@
 #include "appwindow.h"
+
 #include <gtk/gtk.h>
-#include <macros.h>
 
 int main(int argc, char **argv)
 {

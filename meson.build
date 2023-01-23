@@ -35,7 +35,6 @@ executable(
     install : true,
 )
 
-# Install our .desktop file so the Applications Menu will see it
 install_data(
     'data/applist.desktop',
     install_dir: get_option('datadir') / 'applications',

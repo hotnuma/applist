@@ -11,6 +11,9 @@ PKGCONFIG += tinyc
 #PKGCONFIG += dbus-1
 #PKGCONFIG += libxml-2.0
 
+HEADERS += \
+    appwindow.h \
+
 SOURCES = \
     0Temp.c \
     appwindow.c \
@@ -22,8 +25,5 @@ DISTFILES += \
     License.txt \
     meson.build \
     Readme.md \
-
-HEADERS += \
-    appwindow.h
 
 
