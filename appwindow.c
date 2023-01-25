@@ -1,10 +1,8 @@
+#include "config.h"
 #include "appwindow.h"
-
-#include <libmacros.h>
 
 #include <gtk/gtk.h>
 #include <gio/gdesktopappinfo.h>
-#include <stdbool.h>
 #include <strings.h>
 
 static void _window_finalize(GObject *object);
@@ -20,7 +18,8 @@ static bool _window_append_line(AppWindow *window, GAppInfo *info);
 static gint _appinfo_cmp(gconstpointer a, gconstpointer b);
 gboolean _appinfo_show(GAppInfo *info);
 
-static GdkPixbuf* _pixbuf_from_gicon(GtkWidget *widget, GIcon *gicon, const gchar *id);
+static GdkPixbuf* _pixbuf_from_gicon(GtkWidget *widget, GIcon *gicon,
+                                     const gchar *id);
 static GdkPixbuf* _pixbuf_get_default(GtkWidget *widget, const gchar *id);
 
 static gboolean _window_on_delete(GtkWidget *widget, GdkEvent *event, gpointer data);

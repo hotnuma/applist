@@ -13,6 +13,7 @@ PKGCONFIG += tinyc
 
 HEADERS += \
     appwindow.h \
+    config.h
 
 SOURCES = \
     0Temp.c \
