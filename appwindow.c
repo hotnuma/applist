@@ -19,8 +19,9 @@ static bool _window_append_line(AppWindow *window, GAppInfo *info);
 
 static gint _appinfo_cmp(gconstpointer a, gconstpointer b);
 gboolean _appinfo_show(GAppInfo *info);
-static GdkPixbuf* _pixbuf_from_gicon(GtkWidget *widget, GIcon *gicon);
-static GdkPixbuf* _pixbuf_get_default(GtkWidget *widget);
+
+static GdkPixbuf* _pixbuf_from_gicon(GtkWidget *widget, GIcon *gicon, const gchar *id);
+static GdkPixbuf* _pixbuf_get_default(GtkWidget *widget, const gchar *id);
 
 static gboolean _window_on_delete(GtkWidget *widget, GdkEvent *event, gpointer data);
 
@@ -219,27 +220,11 @@ gboolean _appinfo_show(GAppInfo *info)
 
 static bool _window_append_line(AppWindow *window, GAppInfo *info)
 {
-    c_autounref GdkPixbuf *pix = NULL;
-
     GIcon *gicon = g_app_info_get_icon(info);
-    if (!gicon)
-    {
-        g_print("%s : gicon = null\n", g_app_info_get_id(info));
 
-        pix = _pixbuf_get_default(GTK_WIDGET(window));
-    }
-    else
-    {
-        pix = _pixbuf_from_gicon(GTK_WIDGET(window), gicon);
-
-        if (!pix)
-        {
-            g_print("%s : icon_info = null\n", g_app_info_get_id(info));
-
-            pix = _pixbuf_get_default(GTK_WIDGET(window));
-        }
-    }
-
+    c_autounref GdkPixbuf *pix = _pixbuf_from_gicon(GTK_WIDGET(window),
+                                                    gicon,
+                                                    g_app_info_get_id(info));
 
     GtkTreeIter iter;
     gtk_list_store_append(window->store, &iter);
@@ -253,34 +238,42 @@ static bool _window_append_line(AppWindow *window, GAppInfo *info)
     return true;
 }
 
-static GdkPixbuf* _pixbuf_from_gicon(GtkWidget *widget, GIcon *gicon)
+static GdkPixbuf* _pixbuf_from_gicon(GtkWidget *widget, GIcon *gicon, const gchar *id)
 {
     if (!gicon)
-        return NULL;
+    {
+        g_print("_pixbuf_from_gicon : %s : gicon = null\n", id);
 
-    GtkIconTheme *icon_theme = gtk_icon_theme_get_for_screen(
-                                                gtk_widget_get_screen(widget));
+        return _pixbuf_get_default(widget, id);
+    }
+
+    GtkIconTheme *icon_theme =
+        gtk_icon_theme_get_for_screen(gtk_widget_get_screen(widget));
 
     gint scale_factor = gtk_widget_get_scale_factor(widget);
     gint requested_icon_size = 24 * scale_factor;
 
     c_autounref GtkIconInfo *icon_info =
-                        gtk_icon_theme_lookup_by_gicon(icon_theme,
-                                                       gicon,
-                                                       requested_icon_size,
-                                                       GTK_ICON_LOOKUP_USE_BUILTIN
-                                                       | GTK_ICON_LOOKUP_FORCE_SIZE);
+        gtk_icon_theme_lookup_by_gicon(icon_theme,
+                                       gicon,
+                                       requested_icon_size,
+                                       GTK_ICON_LOOKUP_USE_BUILTIN
+                                       | GTK_ICON_LOOKUP_FORCE_SIZE);
 
     if (G_UNLIKELY(icon_info == NULL))
-        return NULL;
+    {
+        g_print("_pixbuf_from_gicon : %s : icon_info = null\n", id);
+
+        return _pixbuf_get_default(widget, id);
+    }
 
     return gtk_icon_info_load_icon(icon_info, NULL);
 }
 
-static GdkPixbuf* _pixbuf_get_default(GtkWidget *widget)
+static GdkPixbuf* _pixbuf_get_default(GtkWidget *widget, const gchar *id)
 {
-    GtkIconTheme *icon_theme = gtk_icon_theme_get_for_screen(
-                                                gtk_widget_get_screen(widget));
+    GtkIconTheme *icon_theme =
+        gtk_icon_theme_get_for_screen(gtk_widget_get_screen(widget));
 
     gint scale_factor = gtk_widget_get_scale_factor(widget);
     gint requested_icon_size = 24 * scale_factor;
@@ -293,7 +286,11 @@ static GdkPixbuf* _pixbuf_get_default(GtkWidget *widget)
                                    | GTK_ICON_LOOKUP_FORCE_SIZE);
 
     if (G_UNLIKELY(icon_info == NULL))
+    {
+        g_print("_pixbuf_get_default : %s : icon_info = null\n", id);
+
         return NULL;
+    }
 
     return gtk_icon_info_load_icon(icon_info, NULL);
 }
