@@ -185,8 +185,8 @@ static void _window_store_load(AppWindow *window)
     {
         GAppInfo *info = G_APP_INFO(lp->data);
 
-        if (!_appinfo_show(info))
-            continue;
+//        if (!_appinfo_show(info))
+//            continue;
 
         _window_append_line(window, info);
     }
@@ -241,7 +241,7 @@ static GdkPixbuf* _pixbuf_from_gicon(GtkWidget *widget, GIcon *gicon, const gcha
 {
     if (!gicon)
     {
-        g_print("_pixbuf_from_gicon : %s : gicon = null\n", id);
+        //g_print("_pixbuf_from_gicon : %s : gicon = null\n", id);
 
         return _pixbuf_get_default(widget, id);
     }
@@ -261,7 +261,7 @@ static GdkPixbuf* _pixbuf_from_gicon(GtkWidget *widget, GIcon *gicon, const gcha
 
     if (G_UNLIKELY(icon_info == NULL))
     {
-        g_print("_pixbuf_from_gicon : %s : icon_info = null\n", id);
+        //g_print("_pixbuf_from_gicon : %s : icon_info = null\n", id);
 
         return _pixbuf_get_default(widget, id);
     }
