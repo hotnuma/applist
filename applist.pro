@@ -13,12 +13,14 @@ PKGCONFIG += tinyc
 
 HEADERS += \
     appwindow.h \
-    config.h
+    config.h \
+    preferences.h
 
 SOURCES = \
     0Temp.c \
     appwindow.c \
     main.c \
+    preferences.c
 
 DISTFILES += \
     data/applist.desktop \

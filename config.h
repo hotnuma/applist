@@ -5,8 +5,8 @@
 #include <libmacros.h>
 #include <stdbool.h>
 
-#define APP_DISPLAY_NAME "TestGtk"
-#define APP_NAME "testgtk"
+#define APP_DISPLAY_NAME "AppList"
+#define APP_NAME "applist"
 
 #endif // CONFIG_H
 

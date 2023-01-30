@@ -1,5 +1,6 @@
 #include "config.h"
 #include "appwindow.h"
+#include "preferences.h"
 
 #include <gtk/gtk.h>
 #include <gio/gdesktopappinfo.h>
@@ -63,8 +64,6 @@ static gboolean _window_on_delete(GtkWidget *widget, GdkEvent *event, gpointer d
     UNUSED(event);
     UNUSED(data);
 
-#if 0
-    Preferences *prefs = get_preferences();
     GtkWindow *window = GTK_WINDOW(widget);
 
     if (gtk_widget_get_visible(GTK_WIDGET(widget)))
@@ -72,6 +71,7 @@ static gboolean _window_on_delete(GtkWidget *widget, GdkEvent *event, gpointer d
         GdkWindowState state = gdk_window_get_state(
                                             gtk_widget_get_window(widget));
 
+        Preferences *prefs = get_preferences();
         prefs->window_maximized = ((state & (GDK_WINDOW_STATE_MAXIMIZED
                                              | GDK_WINDOW_STATE_FULLSCREEN))
                                     != 0);
@@ -82,8 +82,9 @@ static gboolean _window_on_delete(GtkWidget *widget, GdkEvent *event, gpointer d
                                 &prefs->window_width,
                                 &prefs->window_height);
         }
+
+        prefs_write();
     }
-#endif
 
     gtk_main_quit();
 
@@ -92,9 +93,7 @@ static gboolean _window_on_delete(GtkWidget *widget, GdkEvent *event, gpointer d
 
 static void window_init(AppWindow *window)
 {
-
-#if 0
-    Preferences *prefs = get_preferences();
+    Preferences *prefs = prefs_file_read();
 
     gtk_window_set_default_size(GTK_WINDOW(window),
                                 prefs->window_width,
@@ -102,12 +101,10 @@ static void window_init(AppWindow *window)
 
     if (G_UNLIKELY(prefs->window_maximized))
         gtk_window_maximize(GTK_WINDOW(window));
-#endif
 
     gtk_window_set_title(GTK_WINDOW(window), "AppInfo List");
     gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
     gtk_container_set_border_width(GTK_CONTAINER(window), 10);
-    gtk_window_set_default_size(GTK_WINDOW(window), 640, 480);
 
     g_signal_connect(window, "delete-event",
                      G_CALLBACK(_window_on_delete), NULL);
@@ -178,6 +175,8 @@ static void _window_create_view(AppWindow *window)
 
 static void _window_store_load(AppWindow *window)
 {
+    Preferences *prefs = get_preferences();
+
     GList *all = g_app_info_get_all();
     all = g_list_sort(all, _appinfo_cmp);
 
@@ -185,8 +184,8 @@ static void _window_store_load(AppWindow *window)
     {
         GAppInfo *info = G_APP_INFO(lp->data);
 
-//        if (!_appinfo_show(info))
-//            continue;
+        if (prefs->show_all == false && !_appinfo_show(info))
+            continue;
 
         _window_append_line(window, info);
     }
