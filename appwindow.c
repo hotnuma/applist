@@ -16,7 +16,7 @@ static void _treeview_row_activated(GtkTreeView *tree_view, GtkTreePath *path,
 
 static bool _window_append_line(AppWindow *window, GAppInfo *info);
 
-static gint _appinfo_cmp(gconstpointer a, gconstpointer b);
+static gint _utf8_cmp(gconstpointer a, gconstpointer b);
 gboolean _appinfo_show(GAppInfo *info);
 
 static GdkPixbuf* _pixbuf_from_gicon(GtkWidget *widget, GIcon *gicon,
@@ -178,7 +178,7 @@ static void _window_store_load(AppWindow *window)
     Preferences *prefs = get_preferences();
 
     GList *all = g_app_info_get_all();
-    all = g_list_sort(all, _appinfo_cmp);
+    all = g_list_sort(all, _utf8_cmp);
 
     for (GList *lp = all; lp; lp = lp->next)
     {
@@ -193,17 +193,23 @@ static void _window_store_load(AppWindow *window)
     g_list_free_full(all, g_object_unref);
 }
 
-static gint _appinfo_cmp(gconstpointer a, gconstpointer b)
+//static gint _appinfo_cmp(gconstpointer a, gconstpointer b)
+//{
+//    gchar *casefold_a = g_utf8_casefold(g_app_info_get_name(G_APP_INFO(a)), -1);
+//    gchar *casefold_b = g_utf8_casefold(g_app_info_get_name(G_APP_INFO(b)), -1);
+
+//    gint result = g_utf8_collate(casefold_a, casefold_b);
+
+//    g_free (casefold_a);
+//    g_free (casefold_b);
+
+//    return result;
+//}
+
+static gint _utf8_cmp(gconstpointer a, gconstpointer b)
 {
-    gchar *casefold_a = g_utf8_casefold(g_app_info_get_name(G_APP_INFO(a)), -1);
-    gchar *casefold_b = g_utf8_casefold(g_app_info_get_name(G_APP_INFO(b)), -1);
-
-    gint result = g_utf8_collate(casefold_a, casefold_b);
-
-    g_free (casefold_a);
-    g_free (casefold_b);
-
-    return result;
+    return g_utf8_collate(g_app_info_get_name(G_APP_INFO(a)),
+                          g_app_info_get_name(G_APP_INFO(b)));
 }
 
 gboolean _appinfo_show(GAppInfo *info)
