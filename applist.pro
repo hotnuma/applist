@@ -11,7 +11,7 @@ PKGCONFIG += tinyc
 #PKGCONFIG += dbus-1
 #PKGCONFIG += libxml-2.0
 
-HEADERS += \
+HEADERS = \
     appwindow.h \
     config.h \
     preferences.h
@@ -22,7 +22,7 @@ SOURCES = \
     main.c \
     preferences.c
 
-DISTFILES += \
+DISTFILES = \
     data/applist.desktop \
     install.sh \
     License.txt \
