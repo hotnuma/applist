@@ -60,9 +60,9 @@ static void _window_finalize(GObject *object)
 
 static gboolean _window_on_delete(GtkWidget *widget, GdkEvent *event, gpointer data)
 {
-    UNUSED(widget);
-    UNUSED(event);
-    UNUSED(data);
+    (void) widget;
+    (void) event;
+    (void) data;
 
     GtkWindow *window = GTK_WINDOW(widget);
 
@@ -304,8 +304,8 @@ static GdkPixbuf* _pixbuf_get_default(GtkWidget *widget, const gchar *id)
 static void _treeview_row_activated(GtkTreeView *tree_view, GtkTreePath *path,
                                     GtkTreeViewColumn *column, AppWindow *window)
 {
-    UNUSED(column);
-    UNUSED(window);
+    (void) column;
+    (void) window;
 
     GtkTreeModel *model = gtk_tree_view_get_model(tree_view);
 
