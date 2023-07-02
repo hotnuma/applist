@@ -30,6 +30,7 @@ enum
     COL_INFO = 0,
     COL_ICON,
     COL_TITLE,
+    COL_VISIBLE,
     COL_FILE,
     NUM_COLS
 };
@@ -126,6 +127,7 @@ static void _window_create_view(AppWindow *window)
                                              G_TYPE_APP_INFO,
                                              GDK_TYPE_PIXBUF,
                                              G_TYPE_STRING,
+                                             G_TYPE_BOOLEAN,
                                              G_TYPE_STRING);
 
     GtkWidget *treeview = gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
@@ -154,6 +156,18 @@ static void _window_create_view(AppWindow *window)
 
     gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), col);
 
+    // Visible
+    col = gtk_tree_view_column_new();
+    gtk_tree_view_column_set_title(col, "Visible");
+
+    renderer = gtk_cell_renderer_toggle_new();
+    gtk_tree_view_column_pack_start(col, renderer, TRUE);
+    gtk_tree_view_column_set_attributes(col, renderer,
+                                        "active", COL_VISIBLE,
+                                        NULL);
+
+    gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), col);
+
     // File
     col = gtk_tree_view_column_new();
     gtk_tree_view_column_set_title(col, "File");
@@ -175,7 +189,7 @@ static void _window_create_view(AppWindow *window)
 
 static void _window_store_load(AppWindow *window)
 {
-    Preferences *prefs = get_preferences();
+    //Preferences *prefs = get_preferences();
 
     GList *all = g_app_info_get_all();
     all = g_list_sort(all, _utf8_cmp);
@@ -184,27 +198,14 @@ static void _window_store_load(AppWindow *window)
     {
         GAppInfo *info = G_APP_INFO(lp->data);
 
-        if (prefs->show_all == false && !_appinfo_show(info))
-            continue;
+        //if (prefs->show_all == false && !_appinfo_show(info))
+        //    continue;
 
         _window_append_line(window, info);
     }
 
     g_list_free_full(all, g_object_unref);
 }
-
-//static gint _appinfo_cmp(gconstpointer a, gconstpointer b)
-//{
-//    gchar *casefold_a = g_utf8_casefold(g_app_info_get_name(G_APP_INFO(a)), -1);
-//    gchar *casefold_b = g_utf8_casefold(g_app_info_get_name(G_APP_INFO(b)), -1);
-
-//    gint result = g_utf8_collate(casefold_a, casefold_b);
-
-//    g_free (casefold_a);
-//    g_free (casefold_b);
-
-//    return result;
-//}
 
 static gint _utf8_cmp(gconstpointer a, gconstpointer b)
 {
@@ -238,6 +239,7 @@ static bool _window_append_line(AppWindow *window, GAppInfo *info)
                        COL_INFO, info,
                        COL_ICON, pix,
                        COL_TITLE, g_app_info_get_name(info),
+                       COL_VISIBLE, _appinfo_show(info),
                        COL_FILE, g_app_info_get_id(info),
                        -1);
 
