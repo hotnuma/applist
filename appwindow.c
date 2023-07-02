@@ -11,6 +11,7 @@ static void _window_finalize(GObject *object);
 static void _window_create_view(AppWindow *window);
 static void _window_store_load(AppWindow *window);
 
+static void _on_toggle(GtkListStore *store, gchar *path_str, gpointer data);
 static void _treeview_row_activated(GtkTreeView *tree_view, GtkTreePath *path,
                                     GtkTreeViewColumn *column, AppWindow *window);
 
@@ -166,6 +167,12 @@ static void _window_create_view(AppWindow *window)
                                         "active", COL_VISIBLE,
                                         NULL);
 
+    //gtk_cell_renderer_toggle_set_activatable(
+    //              GTK_CELL_RENDERER_TOGGLE(renderer), true);
+
+    g_signal_connect_swapped(G_OBJECT(renderer), "toggled",
+                             G_CALLBACK(_on_toggle), store);
+
     gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), col);
 
     // File
@@ -185,6 +192,23 @@ static void _window_create_view(AppWindow *window)
     g_signal_connect(G_OBJECT(treeview), "row-activated",
                      G_CALLBACK(_treeview_row_activated), window);
 
+}
+
+static void _on_toggle(GtkListStore *store, gchar *path_str, gpointer data)
+{
+    (void) data;
+
+    GtkTreeModel *model = GTK_TREE_MODEL(store);
+
+    GtkTreePath *path = gtk_tree_path_new_from_string(path_str);
+    GtkTreeIter iter;
+    gtk_tree_model_get_iter(model, &iter, path);
+
+    gboolean enabled;
+    gtk_tree_model_get(model, &iter, COL_VISIBLE, &enabled, -1);
+
+    enabled = !enabled;
+    gtk_list_store_set(store, &iter, COL_VISIBLE, enabled, -1);
 }
 
 static void _window_store_load(AppWindow *window)
