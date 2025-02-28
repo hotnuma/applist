@@ -20,6 +20,7 @@ endif
 app_deps = [
     dependency('gtk+-3.0'),
     dependency('tinyc'),
+    dependency('tinyui'),
 ]
 
 app_src = [
